@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>จัดการข้อมูลลูกค้า - Wallet System</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="css/style.css" />
+  </head>
+  <body class="sidebar-open">
+    <div class="main-layout">
+      <header class="header">
+        <div class="hamburger" onclick="toggleSidebar()">
+          <span></span>
+          <span></span>
+          <span></span>
+        </div>
+        <h1>Wallet System</h1>
+      </header>
+
+      <aside class="sidebar open">
+        <ul class="sidebar-menu">
+          <li><a href="customer.html" class="active">จัดการข้อมูลลูกค้า</a></li>
+          <li><a href="order.html">จัดการคำสั่งซื้อ</a></li>
+          <li><a href="transaction.html">จัดการรายรับรายจ่าย</a></li>
+          <li><a href="dashboard.html">แดชบอร์ด</a></li>
+        </ul>
+      </aside>
+
+      <main class="main-content">
+        <div class="card">
+          <h2 class="card-title">เพิ่มลูกค้าใหม่</h2>
+          <form id="customerForm">
+            <div class="form-group">
+              <label for="name">ชื่อ</label>
+              <input type="text" id="name" class="form-control" required />
+            </div>
+            <div class="form-group">
+              <label for="email">อีเมล</label>
+              <input type="email" id="email" class="form-control" required />
+            </div>
+            <div class="form-group">
+              <label for="password">รหัสผ่าน</label>
+              <input
+                type="password"
+                id="password"
+                class="form-control"
+                required
+              />
+            </div>
+            <div class="form-group">
+              <label for="phone">เบอร์โทรศัพท์</label>
+              <input type="tel" id="phone" class="form-control" required />
+            </div>
+            <div class="form-group">
+              <label for="rate_discount">ส่วนลด (%)</label>
+              <input
+                type="number"
+                id="rate_discount"
+                class="form-control"
+                min="0"
+                max="100"
+              />
+            </div>
+            <button type="submit" class="btn btn-primary">บันทึก</button>
+          </form>
+        </div>
+
+        <div class="card">
+          <h2 class="card-title">รายชื่อลูกค้า</h2>
+          <div class="form-group">
+            <input type="text" id="searchCustomer" class="form-control" placeholder="ค้นหาลูกค้าตาม ID หรือชื่อ" onkeyup="searchCustomers()" />
+          </div>
+          <table class="table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>ชื่อ</th>
+                <th>อีเมล</th>
+                <th>เบอร์โทรศัพท์</th>
+                <th>ส่วนลด</th>
+                <th>ยอดเงินในวอลเล็ต</th>
+                <th>จัดการ</th>
+              </tr>
+            </thead>
+            <tbody id="customerList"></tbody>
+          </table>
+        </div>
+
+        <!-- Modal for Top Up -->
+        <div id="topupModal" class="modal" style="display: none">
+          <div class="modal-content">
+            <h3>เติมเงินในวอลเล็ต</h3>
+            <form id="topupForm">
+              <div class="form-group">
+                <label for="topupAmount">จำนวนเงิน</label>
+                <input
+                  type="number"
+                  id="topupAmount"
+                  class="form-control"
+                  required
+                  min="0"
+                />
+              </div>
+              <button type="submit" class="btn btn-primary">เติมเงิน</button>
+              <button
+                type="button"
+                class="btn btn-danger"
+                onclick="closeModal()"
+              >
+                ยกเลิก
+              </button>
+            </form>
+          </div>
+        </div>
+
+        <!-- Modal for Edit Customer -->
+        <div id="editCustomerModal" class="modal" style="display: none">
+          <div class="modal-content">
+            <h3>แก้ไขข้อมูลลูกค้า</h3>
+            <form id="editCustomerForm">
+              <input type="hidden" id="editCustomerId" />
+              <div class="form-group">
+                <label for="editName">ชื่อ</label>
+                <input
+                  type="text"
+                  id="editName"
+                  class="form-control"
+                  required
+                />
+              </div>
+              <div class="form-group">
+                <label for="editEmail">อีเมล</label>
+                <input
+                  type="email"
+                  id="editEmail"
+                  class="form-control"
+                  required
+                />
+              </div>
+              <div class="form-group">
+                <label for="editPhone">เบอร์โทรศัพท์</label>
+                <input
+                  type="tel"
+                  id="editPhone"
+                  class="form-control"
+                  required
+                />
+              </div>
+              <div class="form-group">
+                <label for="editRateDiscount">ส่วนลด (%)</label>
+                <input
+                  type="number"
+                  id="editRateDiscount"
+                  class="form-control"
+                  min="0"
+                  max="100"
+                />
+              </div>
+              <button type="submit" class="btn btn-primary">
+                บันทึกการแก้ไข
+              </button>
+              <button
+                type="button"
+                class="btn btn-danger"
+                onclick="closeEditModal()"
+              >
+                ยกเลิก
+              </button>
+            </form>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script>
+      let currentCustomerId = null;
+
+      // Load customers
+      async function loadCustomers() {
+        try {
+          const customers = await api.customer.getAll();
+          const customerList = document.getElementById("customerList");
+          customerList.innerHTML = customers
+            .map(
+              (customer) => `
+                    <tr>
+                        <td>${customer._id}</td>
+                        <td>${customer.name}</td>
+                        <td>${customer.email}</td>
+                        <td>${customer.phone}</td>
+                        <td>${customer.rate_discount || 0}%</td>
+                        <td>${api.utils.formatCurrency(customer.wallet)}</td>
+                        <td>
+                            <button onclick="showTopupModal('${
+                              customer._id
+                            }')" class="btn btn-primary">เติมเงิน</button>
+                            <button onclick="showEditModal('${
+                              customer._id
+                            }')" class="btn btn-primary">แก้ไข</button>
+                            <button onclick="deleteCustomer('${
+                              customer._id
+                            }')" class="btn btn-danger">ลบ</button>
+                        </td>
+                    </tr>
+                `
+            )
+            .join("");
+        } catch (error) {
+          alert("เกิดข้อผิดพลาดในการโหลดข้อมูลลูกค้า");
+        }
+      }
+
+      // Search customers
+      function searchCustomers() {
+        const searchText = document.getElementById("searchCustomer").value.toLowerCase();
+        const rows = document.getElementById("customerList").getElementsByTagName("tr");
+        
+        for (let row of rows) {
+          const id = row.cells[0].textContent.toLowerCase();
+          const name = row.cells[1].textContent.toLowerCase();
+          if (id.includes(searchText) || name.includes(searchText)) {
+            row.style.display = "";
+          } else {
+            row.style.display = "none";
+          }
+        }
+      }
+
+      // Add new customer
+      document
+        .getElementById("customerForm")
+        .addEventListener("submit", async (e) => {
+          e.preventDefault();
+          try {
+            const customerData = {
+              name: document.getElementById("name").value,
+              email: document.getElementById("email").value,
+              password: document.getElementById("password").value,
+              phone: document.getElementById("phone").value,
+              rate_discount:
+                document.getElementById("rate_discount").value || null,
+            };
+
+            await api.customer.create(customerData);
+            alert("เพิ่มลูกค้าใหม่สำเร็จ");
+            e.target.reset();
+            loadCustomers();
+          } catch (error) {
+            alert("เกิดข้อผิดพลาดในการเพิ่มลูกค้า");
+          }
+        });
+
+      // Top up wallet
+      function showTopupModal(customerId) {
+        currentCustomerId = customerId;
+        document.getElementById("topupModal").style.display = "block";
+      }
+
+      function closeModal() {
+        document.getElementById("topupModal").style.display = "none";
+        currentCustomerId = null;
+      }
+
+      document
+        .getElementById("topupForm")
+        .addEventListener("submit", async (e) => {
+          e.preventDefault();
+          try {
+            const amount = parseFloat(
+              document.getElementById("topupAmount").value
+            );
+            await api.customer.topup(currentCustomerId, amount);
+            alert("เติมเงินสำเร็จ");
+            closeModal();
+            loadCustomers();
+          } catch (error) {
+            alert("เกิดข้อผิดพลาดในการเติมเงิน");
+          }
+        });
+
+      // Edit customer
+      async function showEditModal(customerId) {
+        try {
+          const customer = await api.customer.getById(customerId);
+          document.getElementById("editCustomerId").value = customer._id;
+          document.getElementById("editName").value = customer.name;
+          document.getElementById("editEmail").value = customer.email;
+          document.getElementById("editPhone").value = customer.phone;
+          document.getElementById("editRateDiscount").value =
+            customer.rate_discount || "";
+          document.getElementById("editCustomerModal").style.display = "block";
+        } catch (error) {
+          alert("เกิดข้อผิดพลาดในการโหลดข้อมูลลูกค้า");
+        }
+      }
+
+      function closeEditModal() {
+        document.getElementById("editCustomerModal").style.display = "none";
+        document.getElementById("editCustomerForm").reset();
+      }
+
+      // Handle edit customer form submission
+      document
+        .getElementById("editCustomerForm")
+        .addEventListener("submit", async (e) => {
+          e.preventDefault();
+          try {
+            const customerId = document.getElementById("editCustomerId").value;
+            const customerData = {
+              name: document.getElementById("editName").value,
+              email: document.getElementById("editEmail").value,
+              phone: document.getElementById("editPhone").value,
+              rate_discount:
+                document.getElementById("editRateDiscount").value || null,
+            };
+
+            await api.customer.update(customerId, customerData);
+            alert("แก้ไขข้อมูลลูกค้าสำเร็จ");
+            closeEditModal();
+            loadCustomers();
+          } catch (error) {
+            alert("เกิดข้อผิดพลาดในการแก้ไขข้อมูลลูกค้า");
+          }
+        });
+
+      // Delete customer
+      async function deleteCustomer(customerId) {
+        if (confirm("คุณแน่ใจหรือไม่ที่จะลบลูกค้านี้?")) {
+          try {
+            await api.customer.delete(customerId);
+            alert("ลบลูกค้าสำเร็จ");
+            loadCustomers();
+          } catch (error) {
+            alert("เกิดข้อผิดพลาดในการลบลูกค้า");
+          }
+        }
+      }
+
+      // Initial load
+      loadCustomers();
+
+      function toggleSidebar() {
+        const sidebar = document.querySelector(".sidebar");
+        const isOpen = sidebar.classList.contains("open");
+        if (isOpen) {
+          sidebar.classList.remove("open");
+          document.body.classList.remove("sidebar-open");
+        } else {
+          sidebar.classList.add("open");
+          document.body.classList.add("sidebar-open");
+        }
+      }
+
+      // ปิด sidebar เมื่อคลิกข้างนอก (mobile/pc)
+      document.addEventListener("click", function (e) {
+        const sidebar = document.querySelector(".sidebar");
+        const hamburger = document.querySelector(".hamburger");
+        if (
+          sidebar &&
+          sidebar.classList.contains("open") &&
+          !sidebar.contains(e.target) &&
+          !hamburger.contains(e.target)
+        ) {
+          sidebar.classList.remove("open");
+          document.body.classList.remove("sidebar-open");
+        }
+      });
+    </script>
+  </body>
+</html>

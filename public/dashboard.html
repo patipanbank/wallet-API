@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>แดชบอร์ด - Wallet System</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="css/style.css" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  </head>
+  <body class="sidebar-open">
+    <div class="main-layout">
+      <header class="header">
+        <div class="hamburger" onclick="toggleSidebar()">
+          <span></span>
+          <span></span>
+          <span></span>
+        </div>
+        <h1>Wallet System</h1>
+      </header>
+
+      <aside class="sidebar open">
+        <ul class="sidebar-menu">
+          <li><a href="customer.html">จัดการข้อมูลลูกค้า</a></li>
+          <li><a href="order.html">จัดการคำสั่งซื้อ</a></li>
+          <li><a href="transaction.html">จัดการรายรับรายจ่าย</a></li>
+          <li><a href="dashboard.html" class="active">แดชบอร์ด</a></li>
+        </ul>
+      </aside>
+
+      <main class="main-content">
+        <div class="card">
+          <h2 class="card-title">สรุปข้อมูลประจำปี</h2>
+          <div class="form-group">
+            <label for="year">เลือกปี</label>
+            <input
+              type="number"
+              id="year"
+              class="form-control"
+              min="2000"
+              max="2100"
+              step="1"
+              onchange="handleYearChange(this.value)"
+              placeholder="กรอกปี เช่น 2024"
+            />
+          </div>
+        </div>
+
+        <div class="dashboard-stats">
+          <div class="stat-card">
+            <h3>รายรับรวม</h3>
+            <div class="value" id="totalIncome">0</div>
+          </div>
+          <div class="stat-card">
+            <h3>รายจ่ายรวม</h3>
+            <div class="value" id="totalExpense">0</div>
+          </div>
+          <div class="stat-card">
+            <h3>อัตราการเติบโตของรายรับ</h3>
+            <div class="value" id="incomeGrowth">0%</div>
+          </div>
+          <div class="stat-card">
+            <h3>อัตราการเติบโตของรายจ่าย</h3>
+            <div class="value" id="expenseGrowth">0%</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2 class="card-title">กราฟแสดงรายรับรายจ่ายรายเดือน</h2>
+          <div class="chart-container">
+            <canvas id="monthlyChart"></canvas>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script>
+      let monthlyChart = null;
+
+      // Set default year to current year
+      document.getElementById("year").value = new Date().getFullYear();
+
+      function handleYearChange(value) {
+        loadDashboard(value);
+      }
+
+      async function loadDashboard(year = new Date().getFullYear()) {
+        try {
+          const data = await api.transaction.getYearlyDashboard(year);
+
+          // Update stats
+          document.getElementById("totalIncome").textContent =
+            api.utils.formatCurrency(data.yearlyTotals.income);
+          document.getElementById("totalExpense").textContent =
+            api.utils.formatCurrency(data.yearlyTotals.expense);
+          document.getElementById(
+            "incomeGrowth"
+          ).textContent = `${data.growthRates.income.toFixed(2)}%`;
+          document.getElementById(
+            "expenseGrowth"
+          ).textContent = `${data.growthRates.expense.toFixed(2)}%`;
+
+          // Update chart
+          const months = [
+            "มกราคม",
+            "กุมภาพันธ์",
+            "มีนาคม",
+            "เมษายน",
+            "พฤษภาคม",
+            "มิถุนายน",
+            "กรกฎาคม",
+            "สิงหาคม",
+            "กันยายน",
+            "ตุลาคม",
+            "พฤศจิกายน",
+            "ธันวาคม",
+          ];
+
+          const chartData = {
+            labels: months,
+            datasets: [
+              {
+                label: "รายรับ",
+                data: data.chartData.map((d) => d.income),
+                borderColor: "#2ecc71",
+                backgroundColor: "rgba(46, 204, 113, 0.1)",
+                fill: true,
+              },
+              {
+                label: "รายจ่าย",
+                data: data.chartData.map((d) => d.expense),
+                borderColor: "#e74c3c",
+                backgroundColor: "rgba(231, 76, 60, 0.1)",
+                fill: true,
+              },
+            ],
+          };
+
+          if (monthlyChart) {
+            monthlyChart.destroy();
+          }
+
+          monthlyChart = new Chart(document.getElementById("monthlyChart"), {
+            type: "line",
+            data: chartData,
+            options: {
+              responsive: true,
+              plugins: {
+                title: {
+                  display: true,
+                  text: "รายรับรายจ่ายรายเดือน",
+                },
+              },
+              scales: {
+                y: {
+                  beginAtZero: true,
+                  ticks: {
+                    callback: function (value) {
+                      return api.utils.formatCurrency(value);
+                    },
+                  },
+                },
+              },
+            },
+          });
+        } catch (error) {
+          alert("เกิดข้อผิดพลาดในการโหลดข้อมูลแดชบอร์ด");
+        }
+      }
+
+      // Initial load
+      loadDashboard();
+
+      function toggleSidebar() {
+        const sidebar = document.querySelector(".sidebar");
+        const isOpen = sidebar.classList.contains("open");
+        if (isOpen) {
+          sidebar.classList.remove("open");
+          document.body.classList.remove("sidebar-open");
+        } else {
+          sidebar.classList.add("open");
+          document.body.classList.add("sidebar-open");
+        }
+      }
+
+      // ปิด sidebar เมื่อคลิกข้างนอก (mobile/pc)
+      document.addEventListener("click", function (e) {
+        const sidebar = document.querySelector(".sidebar");
+        const hamburger = document.querySelector(".hamburger");
+        if (
+          sidebar &&
+          sidebar.classList.contains("open") &&
+          !sidebar.contains(e.target) &&
+          !hamburger.contains(e.target)
+        ) {
+          sidebar.classList.remove("open");
+          document.body.classList.remove("sidebar-open");
+        }
+      });
+    </script>
+  </body>
+</html>
